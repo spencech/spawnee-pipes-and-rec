@@ -3,3 +3,4 @@ node_modules
 .spawneerc.json
 .spawnee-state.json
 .chunkhound*
+claude-resume.txt

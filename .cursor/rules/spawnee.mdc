@@ -1,0 +1,247 @@
+---
+description: This rule should be applied any time the user requests a spawnee plan.
+alwaysApply: false
+---
+
+# Spawnee Task Template Guide
+
+Use this guide when creating YAML task templates for spawnee, a CLI tool that orchestrates Cursor Cloud Agents.
+
+Review ALL Documentation: https://www.npmjs.com/package/spawnee
+
+Review Existing Spawnee plans here: {cwd}/upbeat-spawnee-plans
+
+## Repository Mapping
+
+When creating spawnee plans, use the correct GitHub repository URLs from this mapping table.  Note that if a folder is not listed here, it is most likely a deprecated project and should not be considered during plan generation unless explicity referenced by the user.
+
+| Folder | Repository URL |
+|--------|---------------|
+| upbeat-admin-portal | `https://github.com/TeachUpbeat/administrator-portal.git` |
+| upbeat-aws-infrastructure | `https://github.com/TeachUpbeat/upbeat-aws-infrastructure.git` |
+| upbeat-district-administration | `https://github.com/TeachUpbeat/district-administrator.git` |
+| upbeat-documentation | `https://github.com/TeachUpbeat/upbeat-documentation.git` |
+| upbeat-engagement-database | `https://github.com/TeachUpbeat/engagement-database.git` |
+| upbeat-lambda-layers | `https://github.com/TeachUpbeat/upbeat-lambda-layers.git` |
+| upbeat-pdf-generator | `https://github.com/TeachUpbeat/pdf-generator.git` |
+| upbeat-presentation-generator | `https://github.com/TeachUpbeat/google-presentations.git` |
+| upbeat-reports | `https://github.com/TeachUpbeat/reports-2.0.git` |
+| upbeat-sendgrid-cognito | `https://github.com/TeachUpbeat/upbeat-sendgrid-cognito.git` |
+| upbeat-sendgrid-mailer | `https://github.com/TeachUpbeat/lambda-sendgrid.git` |
+| upbeat-sendgrid-webhook | `https://github.com/TeachUpbeat/upbeat-sendgrid-webhook.git` |
+| upbeat-sendgrid-websocket | `https://github.com/TeachUpbeat/upbeat-sendgrid-websocket.git` |
+| upbeat-survey-administration | `https://github.com/TeachUpbeat/upbeat-survey-administration.git` |
+| upbeat-survey-editor | `https://github.com/TeachUpbeat/survey-administrator.git` |
+| upbeat-survey-legacy | `https://github.com/TeachUpbeat/survey.git` |
+| upbeat-user-administration | `https://github.com/TeachUpbeat/user-administrator.git` |
+
+**Important**: Always use HTTPS URLs (not SSH) in spawnee templates. Match the folder name to find the correct repository URL.
+
+**Important**: When creating API Gateway routes in an AWS Infrastructure update, always increment the semver on AutomatedDeployment.json, this triggers a new API deployment in the cloud. Also, be sure to follow existing conventions for template generation, permissions etc.,
+
+**Important**: Unless specified, always prefix base feature branches with the spawnee/PD-1234 convention, and task branches with cursor/spawnee/PD-1234 convention.
+
+## Template Structure
+
+```yaml
+name: "PD-1234: Template Title / Plan Name here"
+repository:
+  url: "https://github.com/TeachUpbeat/{product-repository-here}.git"
+  branch: "spawnee/PD-1234-branch-name-for-cursor-task-prs"
+  baseBranch: "spawnee/PD-1234-branch-name-for-cursor-task-prs"
+
+defaults:
+  model: "composer-1"
+  timeout: 3600000
+  retries: 2
+
+tasks:
+  - id: unique-task-id
+    name: "Task description here"
+    branch: "cursor/spawnee/PD-1234-task-description" #Always prefix tasks with cursor/
+    repository:
+      url: "https://github.com/TeachUpbeat/optional-repo-override.git"
+      branch: "spawnee/PD-1234-branch-name-for-cursor-task-prs" # Always use the same feature branch name across repositories
+    dependsOn: []  # Array of task IDs this depends on
+    model: "composer-1"  # Optional: override default model
+    breakpoint: true  # Optional: pause for human review
+```
+
+## Available Models
+
+Query live models with `spawnee models`. Known working models:
+- `claude-4.5-opus-high-thinking` - Best for complex reasoning tasks
+- `composer-1` - Cursor's general-purpose agent model
+- `gpt-5.2` - OpenAI model
+- `gpt-5.2-high` - OpenAI model with higher compute
+- `gemini-3-pro` - Google model
+
+**Important**: The `/v0/models` endpoint only returns models available for Cloud Agents API, which differs from models in Cursor IDE. Models like `composer-1` work even if not listed.
+
+## Task Dependencies
+
+Tasks execute based on dependency graph:
+- Tasks with empty `dependsOn: []` run immediately in parallel
+- Tasks wait for all dependencies to complete before starting
+- Use `breakpoint: true` to pause after a task for human review before dependents run
+
+**Important for dependent tasks**: When a task depends on another, its agent starts fresh without knowledge of prior work. Always instruct dependent tasks to pull the latest changes:
+
+```yaml
+- id: dependent-task
+  name: "Task description here"
+  branch: "cursor/spawnee/PD-1234-dependent-task"
+  prompt: |
+    ## PREREQUISITE: Merge Dependency Branch
+
+      ```bash
+      git fetch origin
+      git checkout cursor/spawnee/PD-1234-dependent-task
+      git merge origin/cursor/spawnee/PD-1234-prior-task --no-edit
+      ```
+
+      Verify merge succeeded: ... if possible look for evidence of successful change (e.g., an expected file )
+  dependsOn:
+    - prior-task
+```
+
+## When to Use Multiple Tasks vs Single Task
+
+**Prefer fewer tasks with more work each.** A single agent can complete multiple related steps.
+
+Use **separate tasks/agents** when:
+- Work targets different repositories
+- Changes are in completely unrelated areas (low conflict risk)
+- Individual changes are expansive and would benefit from dedicated context windows
+- You need a breakpoint between steps for human review
+
+Use a **single task** when:
+- Steps are sequential, related and sufficiently discrete that they can be done safely in a standard context window
+- Changes might touch the same files
+- Work is in the same area of the codebase
+
+Example - **BAD** (unnecessary splitting):
+```yaml
+tasks:
+  - id: create-component
+    name: "Create Button component"
+    branch: "cursor/spawnee/PD-1234-create-component"
+    prompt: "Create Button component"
+  - id: add-styles
+    name: "Add styles to Button"
+    branch: "cursor/spawnee/PD-1234-add-styles"
+    prompt: "Add styles to Button"
+    dependsOn: [create-component]
+  - id: add-tests
+    name: "Add tests for Button"
+    branch: "cursor/spawnee/PD-1234-add-tests"
+    prompt: "Add tests for Button"
+    dependsOn: [add-styles]
+```
+
+Example - **GOOD** (single agent does related work):
+```yaml
+tasks:
+  - id: create-button
+    name: "Create Button component"
+    branch: "cursor/spawnee/PD-1234-create-button"
+    prompt: |
+      Create a Button component with:
+      - The component implementation
+      - Styled with CSS modules
+      - Unit tests
+```
+
+## Breakpoints
+
+**Only add breakpoints if the user explicitly requests them.** Assume no breakpoints unless specified.
+
+When a task has `breakpoint: true`:
+1. Task executes normally
+2. After completion, CLI prompts: `Continue to dependent tasks? (Y/n)`
+3. User can review agent output before proceeding
+4. Selecting "n" aborts remaining dependent tasks
+
+## Task-Level Overrides
+
+Each task can override template defaults:
+- `branch` - Use a different branch in the same repository
+- `repository` - Target a different repo (with its own branch)
+- `model` - Use a different model for specific tasks
+
+This enables multi-repository and multi-branch orchestration in a single template.
+
+## Example: Multi-Repository Template
+
+```yaml
+name: "PD-1234: Cross-Repo Feature"
+repository:
+  url: "https://github.com/TeachUpbeat/frontend.git"
+  branch: "spawnee/PD-1234-cross-repo-feature"
+  baseBranch: "spawnee/PD-1234-cross-repo-feature"
+
+defaults:
+  model: "composer-1"
+  timeout: 3600000
+  retries: 2
+
+tasks:
+  - id: api-changes
+    name: "Update API endpoints"
+    branch: "cursor/spawnee/PD-1234-api-changes"
+    repository:  # Different repo
+      url: "https://github.com/TeachUpbeat/backend.git"
+      branch: "spawnee/PD-1234-cross-repo-feature"  # Always use the same feature branch name across repositories
+    model: "composer-1"  # Different model
+    prompt: |
+      Add new /users/preferences endpoint that returns user settings.
+      Include proper error handling and validation.
+    dependsOn: []
+
+  - id: frontend-integration
+    name: "Integrate new API"
+    branch: "cursor/spawnee/PD-1234-frontend-integration"  # Always prefix tasks with cursor/
+    prompt: |
+      First, pull the latest changes.
+      Call the new /users/preferences endpoint from the settings page.
+      Display preferences in a form that allows editing.
+    dependsOn:
+      - api-changes
+
+  - id: add-tests
+    name: "Add integration tests"
+    branch: "cursor/spawnee/PD-1234-add-tests"
+    prompt: |
+      First, pull the latest changes.
+      Write integration tests for the preferences feature.
+    dependsOn:
+      - frontend-integration
+```
+
+## Best Practices
+
+1. **Use descriptive task IDs** - They appear in logs and status output
+2. **Write detailed prompts** - Agents work autonomously; be specific
+3. **Set breakpoints strategically** - Before critical dependent tasks
+4. **Parallelize independent work** - Tasks with no dependencies run concurrently
+5. **Use task-level overrides** - When tasks target different repos or need different models
+
+## Running Templates
+
+```bash
+# Execute a template
+spawnee run template.yaml
+
+# Check status of a running agent
+spawnee status <conversationId>
+
+# List available models
+spawnee models
+```
+
+## Status Tracking
+
+Spawnee updates the YAML file in-place with execution status:
+- Adds `conversationId` to each task after spawning
+- Updates task status (pending, running, completed, failed)
+- Enables resuming or checking progress
