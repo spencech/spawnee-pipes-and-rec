@@ -1,0 +1,50 @@
+# Source files
+src/
+*.ts
+!dist/**/*.d.ts
+
+# Config files
+tsconfig.json
+.eslintrc*
+.prettierrc*
+
+# Development
+.env*
+.spawnee-state.json
+.spawneerc.json
+.orchestrator-state.json
+
+# Templates and docs (not needed in package)
+templates/
+plan.md
+*.plan.md
+API_*.md
+TESTING.md
+FINDING_ENDPOINTS.md
+
+# Scripts
+scripts/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Tests
+tests/
+__tests__/
+*.test.ts
+*.spec.ts
+coverage/
+
+# Misc
+node_modules/
+*.log
+*.tgz
+.DS_Store
+

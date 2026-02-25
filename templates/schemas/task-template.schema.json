@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["name", "repository", "tasks"],
+  "properties": {
+    "name": { "type": "string", "description": "Plan/template name" },
+    "repository": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "url": { "type": "string" },
+        "branch": { "type": "string", "default": "main" },
+        "baseBranch": { "type": "string" }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string", "default": "auto" },
+        "timeout": { "type": "number", "default": 3600 },
+        "retries": { "type": "number", "default": 2 },
+        "createPR": { "type": "boolean", "default": true }
+      }
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "files": { "type": "array", "items": { "type": "string" } },
+        "instructions": { "type": "string" }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "prompt"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "prompt": { "type": "string" },
+          "dependsOn": { "type": "array", "items": { "type": "string" } },
+          "files": { "type": "array", "items": { "type": "string" } },
+          "branch": { "type": "string" },
+          "priority": { "type": "number", "default": 0 },
+          "timeout": { "type": "number" },
+          "retries": { "type": "number" },
+          "complete": { "type": "boolean", "description": "Mark task as already completed - dependencies will not wait for it" },
+          "validation": {
+            "type": "object",
+            "properties": {
+              "command": { "type": "string" },
+              "successPattern": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

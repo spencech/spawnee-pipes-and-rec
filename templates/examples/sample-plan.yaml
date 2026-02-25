@@ -1,0 +1,72 @@
+name: "Sample Task Plan"
+repository:
+  url: "https://github.com/***********/************.git"
+  branch: "main"
+  baseBranch: "develop"
+
+defaults:
+  model: "auto"
+  timeout: 3600000
+  retries: 2
+  createPR: true
+
+context:
+  instructions: |
+    You are implementing features for a Node.js application.
+    Follow existing code patterns and conventions.
+    Write clean, well-documented code.
+  files:
+    - "README.md"
+    - "package.json"
+
+tasks:
+  - id: "setup"
+    name: "Project Setup"
+    priority: 100
+    branch: "feature/setup"
+    prompt: |
+      Initialize the project structure:
+      1. Create necessary directories
+      2. Set up configuration files
+      3. Verify the setup works correctly
+
+  - id: "feature-a"
+    name: "Feature A"
+    dependsOn: ["setup"]
+    priority: 80
+    branch: "feature/feature-a"
+    prompt: |
+      Implement Feature A:
+      1. Add the core functionality
+      2. Include error handling
+      3. Add basic tests
+    files:
+      - "src/features/"
+
+  - id: "feature-b"
+    name: "Feature B"
+    dependsOn: ["setup"]
+    priority: 80
+    branch: "feature/feature-b"
+    prompt: |
+      Implement Feature B:
+      1. Add the core functionality
+      2. Include error handling
+      3. Add basic tests
+    files:
+      - "src/features/"
+
+  - id: "integration"
+    name: "Integration"
+    dependsOn: ["feature-a", "feature-b"]
+    priority: 60
+    branch: "feature/integration"
+    prompt: |
+      Integrate Feature A and Feature B:
+      1. Connect the features
+      2. Add integration tests
+      3. Update documentation
+    validation:
+      command: "npm test"
+      successPattern: "passed"
+

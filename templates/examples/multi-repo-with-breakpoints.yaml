@@ -1,0 +1,78 @@
+name: "Multi-Repository Feature with Breakpoints"
+repository:
+  url: "https://github.com/example/main-repo"
+  branch: "main"
+
+defaults:
+  model: "auto"
+  timeout: 3600000
+  retries: 2
+  createPR: true
+
+context:
+  instructions: |
+    This is an example template demonstrating:
+    - Task-level model overrides
+    - Task-level repository overrides
+    - Breakpoints for human review
+    - Cross-repository dependencies
+  files:
+    - "README.md"
+
+tasks:
+  # Backend task in a different repository
+  - id: "backend-api"
+    name: "Backend API Update"
+    priority: 100
+    branch: "feature/new-endpoint"
+    model: "claude-4.5-opus-high-thinking"  # Override model
+    repository:
+      url: "https://github.com/example/backend"
+      branch: "develop"
+    prompt: |
+      Add a new REST endpoint for user preferences.
+      Include proper validation and error handling.
+
+  # Frontend tasks in the main repository
+  - id: "frontend-setup"
+    name: "Frontend Setup"
+    priority: 90
+    branch: "feature/preferences-ui-setup"
+    model: "gpt-4o"  # Use faster model for simple setup
+    prompt: |
+      Set up the UI component structure for user preferences.
+      Create the necessary files and folder structure.
+
+  - id: "frontend-implementation"
+    name: "Frontend Implementation"
+    dependsOn: ["frontend-setup", "backend-api"]  # Cross-repo dependency!
+    priority: 80
+    branch: "feature/preferences-ui"
+    prompt: |
+      Implement the user preferences UI.
+      Pull changes from feature/preferences-ui-setup first.
+      Reference the backend PR for API documentation.
+
+  # Integration task with breakpoint
+  - id: "integration"
+    name: "Integration & Review"
+    dependsOn: ["frontend-implementation"]
+    priority: 50
+    branch: "feature/preferences-integration"
+    breakpoint: true  # Human review point
+    prompt: |
+      Integrate the frontend with the backend API.
+      Run all tests and verify the feature works end-to-end.
+    validation:
+      command: "npm test"
+      successPattern: "passed|PASS"
+
+  # Final task after human review
+  - id: "documentation"
+    name: "Documentation Update"
+    dependsOn: ["integration"]
+    priority: 40
+    branch: "feature/preferences-docs"
+    prompt: |
+      Update the user documentation with the new preferences feature.
+      Include screenshots and usage examples.

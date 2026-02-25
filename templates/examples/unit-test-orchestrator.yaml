@@ -1,0 +1,265 @@
+name: "************* Admin Dashboard Application - Component Tests"
+repository:
+  url: "https://github.com/***********/************.git"
+  branch: "develop"
+  baseBranch: "develop"
+
+defaults:
+  model: "gpt-5.1-codex-max-high-fast"
+  timeout: 3600000
+  retries: 2
+  createPR: true
+
+context:
+  instructions: |
+    You are writing comprehensive tests for Angular components in the Admin Dashboard Application.
+    
+    Requirements:
+    - Use existing test conventions and patterns found in the codebase
+    - Place tests in appropriate test files 
+    - Follow the existing testing framework (Jasmine) and patterns used in the project
+    - Include unit tests for component rendering, user interactions, and edge cases
+    - Use the same testing utilities and mocks that are already established in the codebase
+    - Ensure tests are well-organized and follow the project's code style
+    - Check for existing test files and extend them if they exist, or create new ones following conventions
+    - Ensure that tests run in headless mode using Jasmine, these will be run in a CI/CD pipeline.
+    
+    Before writing tests:
+    1. Examine existing test files in the /src directory to understand conventions
+    2. Check what testing framework and utilities are being used
+    3. Review the component structure and dependencies
+    4. Follow the same patterns for imports, setup, and assertions
+  files:
+    - "package.json"
+    - "README.md"
+    - "src"
+
+tasks:
+  - id: "analyze-test-conventions"
+    name: "Analyze Existing Test Conventions"
+    priority: 100
+    branch: "cursor/analyze-test-conventions"
+    complete: true
+    prompt: |
+      Analyze the existing test conventions in the Admin Dashboard Application:
+      
+      1. Search for existing test files in the /src directory (look for .spec.ts files, which are the standard Angular test files)
+      2. Identify the testing framework being used (Jasmine, etc.)
+      3. Document the testing patterns, utilities, and conventions used
+      4. Note how Angular components are imported, mocked, and tested
+      5. Identify any shared test utilities or helpers
+      6. Create a summary document of the testing conventions found
+      
+      This analysis will be used as reference for all subsequent test generation tasks.
+    files:
+      - "src"
+
+  - id: "test-analytics-dashboard"
+    name: "Write Tests for Analytics Dashboard"
+    dependsOn: ["analyze-test-conventions"]
+    priority: 90
+    branch: "cursor/test-analytics-dashboard"
+    complete: true
+    prompt: |
+      Write comprehensive tests for the analytics-dashboard component:
+      
+      1. Locate the analytics-dashboard component in /src
+      2. Review the component's inputs, outputs, and functionality
+      3. Write tests following the existing test conventions identified in the previous task
+      4. Include tests for:
+         - Component rendering
+         - User interactions (clicks, form inputs, etc.)
+         - Data fetching and display
+         - Error handling
+         - Edge cases
+      5. Ensure all tests pass and follow the project's testing patterns
+    files:
+      - "src/analytics-dashboard"
+      - "src"
+
+  - id: "test-app"
+    name: "Write Tests for App Component"
+    dependsOn: ["analyze-test-conventions"]
+    priority: 90
+    branch: "cursor/test-app"
+    prompt: |
+      Write comprehensive tests for the app component:
+      
+      1. Locate the app component in /src
+      2. Review the component's inputs, outputs, routing, and functionality
+      3. Write tests following the existing test conventions identified in the previous task
+      4. Include tests for:
+         - Component rendering
+         - Route handling and navigation
+         - Service injection and providers
+         - Initialization logic
+         - Error handling
+      5. Ensure all tests pass and follow the project's testing patterns
+    files:
+      - "src/app"
+      - "src"
+
+  - id: "test-home"
+    name: "Write Tests for Home Component"
+    dependsOn: ["analyze-test-conventions"]
+    priority: 90
+    branch: "cursor/test-home"
+    prompt: |
+      Write comprehensive tests for the home component:
+      
+      1. Locate the home component in /src
+      2. Review the component's inputs, outputs, and functionality
+      3. Write tests following the existing test conventions identified in the previous task
+      4. Include tests for:
+         - Component rendering
+         - User interactions
+         - Data display and formatting
+         - Navigation links
+         - Loading states
+      5. Ensure all tests pass and follow the project's testing patterns
+    files:
+      - "src/home"
+      - "src"
+
+  - id: "test-resource-editor"
+    name: "Write Tests for Resource Editor"
+    dependsOn: ["analyze-test-conventions"]
+    priority: 90
+    branch: "cursor/test-resource-editor"
+    prompt: |
+      Write comprehensive tests for the resource-editor component:
+      
+      1. Locate the resource-editor component in /src
+      2. Review the component's inputs, outputs, form handling, and functionality
+      3. Write tests following the existing test conventions identified in the previous task
+      4. Include tests for:
+         - Component rendering
+         - Form input handling and validation
+         - Save/submit functionality
+         - Edit mode vs create mode
+         - Error handling and validation messages
+         - Data loading and population
+      5. Ensure all tests pass and follow the project's testing patterns
+    files:
+      - "src/resource-editor"
+      - "src"
+
+  - id: "test-resource-list"
+    name: "Write Tests for Resource List"
+    dependsOn: ["analyze-test-conventions"]
+    priority: 90
+    branch: "cursor/test-resource-list"
+    prompt: |
+      Write comprehensive tests for the resource-list component:
+      
+      1. Locate the resource-list component in /src
+      2. Review the component's inputs, outputs, filtering, sorting, and functionality
+      3. Write tests following the existing test conventions identified in the previous task
+      4. Include tests for:
+         - Component rendering
+         - List item rendering
+         - Filtering and search functionality
+         - Sorting
+         - Pagination if present
+         - Selection and actions
+         - Empty states
+      5. Ensure all tests pass and follow the project's testing patterns
+    files:
+      - "src/resource-list"
+      - "src"
+
+  - id: "test-shared"
+    name: "Write Tests for Shared Components"
+    dependsOn: ["analyze-test-conventions"]
+    priority: 90
+    branch: "cursor/test-shared"
+    prompt: |
+      Write comprehensive tests for components in the shared directory:
+      
+      1. Locate all components in the /src/shared directory
+      2. Review each component's inputs, outputs, and functionality
+      3. Write tests following the existing test conventions identified in the previous task
+      4. For each shared component, include tests for:
+         - Component rendering
+         - Input/output handling
+         - User interactions
+         - Reusability and edge cases
+         - Accessibility if applicable
+      5. Ensure all tests pass and follow the project's testing patterns
+    files:
+      - "src/shared"
+      - "src"
+
+  - id: "test-site-language"
+    name: "Write Tests for Site Language Component"
+    dependsOn: ["analyze-test-conventions"]
+    priority: 90
+    branch: "cursor/test-site-language"
+    prompt: |
+      Write comprehensive tests for the site-language component:
+      
+      1. Locate the site-language component in /src
+      2. Review the component's inputs, outputs, language switching, and functionality
+      3. Write tests following the existing test conventions identified in the previous task
+      4. Include tests for:
+         - Component rendering
+         - Language selection and switching
+         - Language persistence
+         - Default language handling
+         - Language list display
+         - Integration with i18n if used
+      5. Ensure all tests pass and follow the project's testing patterns
+    files:
+      - "src/site-language"
+      - "src"
+
+  - id: "test-state-selector"
+    name: "Write Tests for State Selector"
+    dependsOn: ["analyze-test-conventions"]
+    priority: 90
+    branch: "cursor/test-state-selector"
+    prompt: |
+      Write comprehensive tests for the state-selector component:
+      
+      1. Locate the state-selector component in /src
+      2. Review the component's inputs, outputs, selection logic, and functionality
+      3. Write tests following the existing test conventions identified in the previous task
+      4. Include tests for:
+         - Component rendering
+         - State selection and deselection
+         - Search/filter functionality if present
+         - Multi-select vs single-select behavior
+         - State list rendering
+         - Default selection handling
+         - Change callbacks
+      5. Ensure all tests pass and follow the project's testing patterns
+    files:
+      - "src/state-selector"
+      - "src"
+
+  - id: "verify-all-tests"
+    name: "Verify All Tests Pass"
+    dependsOn: [
+      "test-analytics-dashboard",
+      "test-app",
+      "test-home",
+      "test-resource-editor",
+      "test-resource-list",
+      "test-shared",
+      "test-site-language",
+      "test-state-selector"
+    ]
+    priority: 50
+    branch: "cursor/verify-all-tests"
+    prompt: |
+      Verify that all generated tests pass and are properly integrated:
+      
+      1. Run the test suite to ensure all new tests pass
+      2. Check for any linting or formatting issues
+      3. Verify test coverage is adequate
+      4. Ensure all test files follow the project's conventions
+      5. Create a summary of test coverage for each component
+      6. Document any issues or improvements needed
+    validation:
+      command: "npm test"
+      successPattern: "passed|PASS"

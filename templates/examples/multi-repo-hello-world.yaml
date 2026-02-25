@@ -1,0 +1,50 @@
+name: "Multi-Repo Hello World Test"
+repository:
+  url: "https://github.com/spencech/spawnee"
+  branch: "main"
+
+defaults:
+  model: "composer-1"
+  timeout: 300000  # 5 minutes
+  retries: 1
+  createPR: true
+
+context:
+  instructions: |
+    This is a simple test task. Be brief and create minimal changes.
+
+tasks:
+  - id: "hello-spawnee"
+    name: "Create Hello World in Spawnee"
+    branch: "test/hello-world-multi"
+    model: "composer-1"
+    prompt: |
+      Create a simple file called HELLO_MULTI.md in the root of the repository with the following content:
+
+      # Hello from Spawnee (Multi-Repo Test)
+
+      This file was created by a Cursor Cloud Agent orchestrated by spawnee.
+      This is part of a multi-repository test.
+
+      Timestamp: [current date/time]
+
+      That's it - just create this one file. Do not modify any other files.
+
+  - id: "hello-stages"
+    name: "Create Hello World in Stages API"
+    branch: "test/hello-world-spawnee"
+    model: "claude-4.5-opus-high-thinking"
+    repository:
+      url: "https://github.com/Stages-Learning/stages-platform-api-lambda-proxy"
+      branch: "develop"
+    prompt: |
+      Create a simple file called HELLO_SPAWNEE.md in the root of the repository with the following content:
+
+      # Hello from Spawnee (Multi-Repo Test)
+
+      This file was created by a Cursor Cloud Agent orchestrated by spawnee.
+      This is part of a multi-repository test targeting the Stages API repo.
+
+      Timestamp: [current date/time]
+
+      That's it - just create this one file. Do not modify any other files.
