@@ -23,7 +23,7 @@ declare const TaskSchema: z.ZodObject<{
     complete: z.ZodOptional<z.ZodBoolean>;
     model: z.ZodOptional<z.ZodString>;
     repository: z.ZodOptional<z.ZodObject<{
-        url: z.ZodString;
+        url: z.ZodEffects<z.ZodString, string, string>;
         branch: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         url: string;
@@ -79,10 +79,10 @@ declare const TaskSchema: z.ZodObject<{
     } | undefined;
     breakpoint?: boolean | undefined;
 }>;
-declare const TemplateSchema: z.ZodObject<{
+declare const TemplateSchema: z.ZodEffects<z.ZodObject<{
     name: z.ZodString;
-    repository: z.ZodObject<{
-        url: z.ZodString;
+    repository: z.ZodOptional<z.ZodObject<{
+        url: z.ZodEffects<z.ZodString, string, string>;
         branch: z.ZodDefault<z.ZodString>;
         baseBranch: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -93,7 +93,7 @@ declare const TemplateSchema: z.ZodObject<{
         url: string;
         branch?: string | undefined;
         baseBranch?: string | undefined;
-    }>;
+    }>>;
     defaults: z.ZodDefault<z.ZodObject<{
         model: z.ZodDefault<z.ZodString>;
         timeout: z.ZodDefault<z.ZodNumber>;
@@ -143,7 +143,7 @@ declare const TemplateSchema: z.ZodObject<{
         complete: z.ZodOptional<z.ZodBoolean>;
         model: z.ZodOptional<z.ZodString>;
         repository: z.ZodOptional<z.ZodObject<{
-            url: z.ZodString;
+            url: z.ZodEffects<z.ZodString, string, string>;
             branch: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
             url: string;
@@ -199,13 +199,78 @@ declare const TemplateSchema: z.ZodObject<{
         } | undefined;
         breakpoint?: boolean | undefined;
     }>, "many">;
+    type: z.ZodOptional<z.ZodEnum<["feature", "bugfix", "refactor"]>>;
+    target: z.ZodOptional<z.ZodObject<{
+        repo: z.ZodEffects<z.ZodString, string, string>;
+        branch: z.ZodDefault<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        branch: string;
+        repo: string;
+    }, {
+        repo: string;
+        branch?: string | undefined;
+    }>>;
+    id: z.ZodOptional<z.ZodString>;
+    description: z.ZodOptional<z.ZodString>;
+    acceptance_criteria: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+    priority: z.ZodDefault<z.ZodNumber>;
+    max_qa_cycles: z.ZodDefault<z.ZodNumber>;
+    validation_strategy: z.ZodDefault<z.ZodArray<z.ZodEffects<z.ZodObject<{
+        gate: z.ZodEnum<["typecheck", "unit", "e2e", "lint", "manual"]>;
+        command: z.ZodOptional<z.ZodString>;
+        pattern: z.ZodOptional<z.ZodString>;
+        specs: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        description: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        gate: "typecheck" | "unit" | "e2e" | "lint" | "manual";
+        description?: string | undefined;
+        pattern?: string | undefined;
+        command?: string | undefined;
+        specs?: string[] | undefined;
+    }, {
+        gate: "typecheck" | "unit" | "e2e" | "lint" | "manual";
+        description?: string | undefined;
+        pattern?: string | undefined;
+        command?: string | undefined;
+        specs?: string[] | undefined;
+    }>, {
+        gate: "typecheck" | "unit" | "e2e" | "lint" | "manual";
+        description?: string | undefined;
+        pattern?: string | undefined;
+        command?: string | undefined;
+        specs?: string[] | undefined;
+    }, {
+        gate: "typecheck" | "unit" | "e2e" | "lint" | "manual";
+        description?: string | undefined;
+        pattern?: string | undefined;
+        command?: string | undefined;
+        specs?: string[] | undefined;
+    }>, "many">>;
+    constraints: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+    scope: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+    context_files: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+    ems: z.ZodOptional<z.ZodObject<{
+        stage: z.ZodEnum<["dev", "staging", "prod"]>;
+        profile: z.ZodString;
+        target_type: z.ZodOptional<z.ZodEnum<["angular", "lambda", "shared-lib"]>>;
+        app_name: z.ZodOptional<z.ZodString>;
+        function_name: z.ZodOptional<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        stage: "dev" | "staging" | "prod";
+        profile: string;
+        target_type?: "angular" | "lambda" | "shared-lib" | undefined;
+        app_name?: string | undefined;
+        function_name?: string | undefined;
+    }, {
+        stage: "dev" | "staging" | "prod";
+        profile: string;
+        target_type?: "angular" | "lambda" | "shared-lib" | undefined;
+        app_name?: string | undefined;
+        function_name?: string | undefined;
+    }>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    repository: {
-        url: string;
-        branch: string;
-        baseBranch?: string | undefined;
-    };
+    priority: number;
     tasks: {
         id: string;
         name: string;
@@ -229,6 +294,7 @@ declare const TemplateSchema: z.ZodObject<{
             branch?: string | undefined;
         } | undefined;
     }[];
+    acceptance_criteria: string[];
     defaults: {
         timeout: number;
         retries: number;
@@ -239,13 +305,38 @@ declare const TemplateSchema: z.ZodObject<{
         files: string[];
         instructions?: string | undefined;
     };
+    max_qa_cycles: number;
+    validation_strategy: {
+        gate: "typecheck" | "unit" | "e2e" | "lint" | "manual";
+        description?: string | undefined;
+        pattern?: string | undefined;
+        command?: string | undefined;
+        specs?: string[] | undefined;
+    }[];
+    constraints: string[];
+    scope: string[];
+    context_files: string[];
+    target?: {
+        branch: string;
+        repo: string;
+    } | undefined;
+    id?: string | undefined;
+    repository?: {
+        url: string;
+        branch: string;
+        baseBranch?: string | undefined;
+    } | undefined;
+    type?: "feature" | "bugfix" | "refactor" | undefined;
+    description?: string | undefined;
+    ems?: {
+        stage: "dev" | "staging" | "prod";
+        profile: string;
+        target_type?: "angular" | "lambda" | "shared-lib" | undefined;
+        app_name?: string | undefined;
+        function_name?: string | undefined;
+    } | undefined;
 }, {
     name: string;
-    repository: {
-        url: string;
-        branch?: string | undefined;
-        baseBranch?: string | undefined;
-    };
     tasks: {
         id: string;
         name: string;
@@ -269,6 +360,20 @@ declare const TemplateSchema: z.ZodObject<{
         } | undefined;
         breakpoint?: boolean | undefined;
     }[];
+    target?: {
+        repo: string;
+        branch?: string | undefined;
+    } | undefined;
+    id?: string | undefined;
+    priority?: number | undefined;
+    repository?: {
+        url: string;
+        branch?: string | undefined;
+        baseBranch?: string | undefined;
+    } | undefined;
+    type?: "feature" | "bugfix" | "refactor" | undefined;
+    description?: string | undefined;
+    acceptance_criteria?: string[] | undefined;
     defaults?: {
         timeout?: number | undefined;
         retries?: number | undefined;
@@ -279,9 +384,175 @@ declare const TemplateSchema: z.ZodObject<{
         files?: string[] | undefined;
         instructions?: string | undefined;
     } | undefined;
+    max_qa_cycles?: number | undefined;
+    validation_strategy?: {
+        gate: "typecheck" | "unit" | "e2e" | "lint" | "manual";
+        description?: string | undefined;
+        pattern?: string | undefined;
+        command?: string | undefined;
+        specs?: string[] | undefined;
+    }[] | undefined;
+    constraints?: string[] | undefined;
+    scope?: string[] | undefined;
+    context_files?: string[] | undefined;
+    ems?: {
+        stage: "dev" | "staging" | "prod";
+        profile: string;
+        target_type?: "angular" | "lambda" | "shared-lib" | undefined;
+        app_name?: string | undefined;
+        function_name?: string | undefined;
+    } | undefined;
+}>, {
+    name: string;
+    priority: number;
+    tasks: {
+        id: string;
+        name: string;
+        prompt: string;
+        dependsOn: string[];
+        priority: number;
+        breakpoint: boolean;
+        timeout?: number | undefined;
+        status?: "completed" | "failed" | "pending" | "started" | undefined;
+        branch?: string | undefined;
+        files?: string[] | undefined;
+        retries?: number | undefined;
+        validation?: {
+            command: string;
+            successPattern: string;
+        } | undefined;
+        complete?: boolean | undefined;
+        model?: string | undefined;
+        repository?: {
+            url: string;
+            branch?: string | undefined;
+        } | undefined;
+    }[];
+    acceptance_criteria: string[];
+    defaults: {
+        timeout: number;
+        retries: number;
+        model: string;
+        createPR: boolean;
+    };
+    context: {
+        files: string[];
+        instructions?: string | undefined;
+    };
+    max_qa_cycles: number;
+    validation_strategy: {
+        gate: "typecheck" | "unit" | "e2e" | "lint" | "manual";
+        description?: string | undefined;
+        pattern?: string | undefined;
+        command?: string | undefined;
+        specs?: string[] | undefined;
+    }[];
+    constraints: string[];
+    scope: string[];
+    context_files: string[];
+    target?: {
+        branch: string;
+        repo: string;
+    } | undefined;
+    id?: string | undefined;
+    repository?: {
+        url: string;
+        branch: string;
+        baseBranch?: string | undefined;
+    } | undefined;
+    type?: "feature" | "bugfix" | "refactor" | undefined;
+    description?: string | undefined;
+    ems?: {
+        stage: "dev" | "staging" | "prod";
+        profile: string;
+        target_type?: "angular" | "lambda" | "shared-lib" | undefined;
+        app_name?: string | undefined;
+        function_name?: string | undefined;
+    } | undefined;
+}, {
+    name: string;
+    tasks: {
+        id: string;
+        name: string;
+        prompt: string;
+        timeout?: number | undefined;
+        status?: "completed" | "failed" | "pending" | "started" | undefined;
+        dependsOn?: string[] | undefined;
+        priority?: number | undefined;
+        branch?: string | undefined;
+        files?: string[] | undefined;
+        retries?: number | undefined;
+        validation?: {
+            command: string;
+            successPattern: string;
+        } | undefined;
+        complete?: boolean | undefined;
+        model?: string | undefined;
+        repository?: {
+            url: string;
+            branch?: string | undefined;
+        } | undefined;
+        breakpoint?: boolean | undefined;
+    }[];
+    target?: {
+        repo: string;
+        branch?: string | undefined;
+    } | undefined;
+    id?: string | undefined;
+    priority?: number | undefined;
+    repository?: {
+        url: string;
+        branch?: string | undefined;
+        baseBranch?: string | undefined;
+    } | undefined;
+    type?: "feature" | "bugfix" | "refactor" | undefined;
+    description?: string | undefined;
+    acceptance_criteria?: string[] | undefined;
+    defaults?: {
+        timeout?: number | undefined;
+        retries?: number | undefined;
+        model?: string | undefined;
+        createPR?: boolean | undefined;
+    } | undefined;
+    context?: {
+        files?: string[] | undefined;
+        instructions?: string | undefined;
+    } | undefined;
+    max_qa_cycles?: number | undefined;
+    validation_strategy?: {
+        gate: "typecheck" | "unit" | "e2e" | "lint" | "manual";
+        description?: string | undefined;
+        pattern?: string | undefined;
+        command?: string | undefined;
+        specs?: string[] | undefined;
+    }[] | undefined;
+    constraints?: string[] | undefined;
+    scope?: string[] | undefined;
+    context_files?: string[] | undefined;
+    ems?: {
+        stage: "dev" | "staging" | "prod";
+        profile: string;
+        target_type?: "angular" | "lambda" | "shared-lib" | undefined;
+        app_name?: string | undefined;
+        function_name?: string | undefined;
+    } | undefined;
 }>;
 export type Template = z.infer<typeof TemplateSchema>;
 export type TemplateTask = z.infer<typeof TaskSchema>;
+export interface IValidationGate {
+    gate: 'typecheck' | 'unit' | 'e2e' | 'lint' | 'manual';
+    command?: string;
+    pattern?: string;
+    specs?: string[];
+    description?: string;
+}
+export interface IEmsExtensions {
+    stage: 'dev' | 'staging' | 'prod';
+    profile: string;
+    target_type?: 'angular' | 'lambda' | 'shared-lib';
+    app_name?: string;
+    function_name?: string;
+}
 export interface ParsedTemplate {
     name: string;
     repository: {
@@ -300,9 +571,29 @@ export interface ParsedTemplate {
         instructions?: string;
     };
     tasks: TaskInput[];
+    type?: 'feature' | 'bugfix' | 'refactor';
+    id?: string;
+    description?: string;
+    acceptance_criteria: string[];
+    priority: number;
+    max_qa_cycles: number;
+    validation_strategy: IValidationGate[];
+    constraints: string[];
+    scope: string[];
+    context_files: string[];
+    ems?: IEmsExtensions;
 }
 export declare function parseTemplate(filePath: string): ParsedTemplate;
 export declare function validateTemplateFile(filePath: string): {
+    valid: boolean;
+    errors: string[];
+};
+/**
+ * Validates that a template has all required fields for the full pipeline
+ * (planning → execution → validation → artifact generation).
+ * Stricter than parseTemplate() which allows execution-only templates.
+ */
+export declare function validatePipelineTemplate(filePath: string): {
     valid: boolean;
     errors: string[];
 };

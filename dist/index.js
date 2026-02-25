@@ -4,11 +4,13 @@ import { existsSync, writeFileSync } from 'fs';
 import chalk from 'chalk';
 import ora from 'ora';
 import { Orchestrator } from './core/orchestrator.js';
-import { parseTemplate, validateTemplateFile } from './parsers/index.js';
+import { PipelineController } from './core/pipeline-controller.js';
+import { parseTemplate, validateTemplateFile, validatePipelineTemplate } from './parsers/index.js';
 import { FileStateStore } from './storage/file-adapter.js';
 import { YamlPersistence } from './storage/yaml-persistence.js';
 import { loadConfig, generateDefaultConfig, getConfigFilePath } from './utils/config.js';
 import { CursorClient } from './cursor/client.js';
+import { ValidationRunner } from './validation/validation-runner.js';
 const program = new Command();
 program
     .name('spawnee')
@@ -64,6 +66,9 @@ program
     .option('-d, --dry-run', 'Parse template without spawning agents')
     .option('--no-persist', 'Disable state persistence')
     .option('--update-source', 'Update source YAML file with task status for resume capability')
+    .option('--validate', 'Run validation gates after execution (Phase 4)')
+    .option('--artifact', 'Generate artifacts after validation (Phase 5: PR, test report)')
+    .option('--repo-dir <path>', 'Path to checked-out target repo for validation gates')
     .action(async (templatePath, options, cmd) => {
     const globalOpts = cmd.optsWithGlobals();
     if (!existsSync(templatePath)) {
@@ -88,6 +93,14 @@ program
     }
     console.log(chalk.blue('\n📊 Task Dependency Graph:'));
     displayTaskGraph(template.tasks);
+    // Show pipeline-specific info
+    if (template.type) {
+        console.log(chalk.gray(`   Type: ${template.type}`));
+    }
+    if (template.validation_strategy.length > 0) {
+        console.log(chalk.gray(`   Validation gates: ${template.validation_strategy.map(g => g.gate).join(' → ')}`));
+        console.log(chalk.gray(`   Max QA cycles: ${template.max_qa_cycles}`));
+    }
     if (options.dryRun) {
         console.log(chalk.yellow('\n🔍 Dry run - no agents will be spawned'));
         return;
@@ -118,6 +131,58 @@ program
         filePath: templatePath,
         enabled: true,
     }) : undefined;
+    // Use PipelineController when --validate or --artifact is set
+    if (options.validate || options.artifact) {
+        const repoDir = options.repoDir || process.cwd();
+        const pipeline = new PipelineController({
+            config,
+            template,
+            templatePath,
+            repoWorkDir: repoDir,
+            generateArtifact: !!options.artifact,
+            stateStore,
+            yamlPersistence,
+        });
+        // Wire up pipeline events
+        pipeline.on('agentSpawned', ({ taskId, agentId }) => {
+            console.log(chalk.cyan(`   ▶ Started: ${taskId} (agent: ${agentId.slice(0, 8)}...)`));
+        });
+        pipeline.on('taskCompleted', (task) => {
+            console.log(chalk.green(`   ✓ Completed: ${task.id}`));
+        });
+        pipeline.on('taskFailed', (task) => {
+            console.log(chalk.red(`   ✗ Failed: ${task.id} - ${task.error}`));
+        });
+        pipeline.on('gateStarted', (config) => {
+            console.log(chalk.blue(`   🔍 Running gate: ${config.gate}`));
+        });
+        pipeline.on('gatePassed', (result) => {
+            console.log(chalk.green(`   ✓ Gate passed: ${result.gate} (${result.durationMs}ms)`));
+        });
+        pipeline.on('gateFailed', (result) => {
+            console.log(chalk.red(`   ✗ Gate failed: ${result.gate} (${result.failures.length} failures)`));
+        });
+        pipeline.on('issuesCreated', ({ issueIds }) => {
+            console.log(chalk.yellow(`   📋 Created ${issueIds.length} beads issues for QA failures`));
+        });
+        pipeline.on('escalation', () => {
+            console.log(chalk.red('\n   ⚠ Max QA cycles reached — escalating to human review'));
+        });
+        const spinner = ora('Starting pipeline...').start();
+        spinner.succeed('Pipeline started');
+        const result = await pipeline.run();
+        console.log(chalk.blue('\n📊 Pipeline Results:'));
+        console.log(chalk.green(`   ✓ Completed tasks: ${result.taskResults.completed.length}`));
+        console.log(chalk.red(`   ✗ Failed tasks: ${result.taskResults.failed.length}`));
+        console.log(chalk.gray(`   Validation cycles: ${result.validationHistory.cycles.length}`));
+        console.log(chalk.gray(`   Overall: ${result.success ? chalk.green('SUCCESS') : chalk.red('PARTIAL/FAILED')}`));
+        if (result.artifact?.prUrl) {
+            console.log(chalk.cyan(`\n   PR: ${result.artifact.prUrl}`));
+        }
+        process.exit(result.success ? 0 : 1);
+        return;
+    }
+    // Original Orchestrator-only path (no --validate/--artifact)
     const orchestrator = new Orchestrator({
         config,
         stateStore,
@@ -311,6 +376,67 @@ program
         console.error(chalk.red(`Error: ${error.message}`));
         process.exit(1);
     }
+});
+program
+    .command('validate-gates')
+    .description('Run validation gates against an existing checkout (skip Phase 3 execution)')
+    .argument('<template>', 'Path to template file')
+    .option('--repo-dir <path>', 'Path to checked-out target repo (default: cwd)')
+    .action(async (templatePath, options) => {
+    if (!existsSync(templatePath)) {
+        console.error(chalk.red(`Error: Template file not found: ${templatePath}`));
+        process.exit(1);
+    }
+    let template;
+    try {
+        template = parseTemplate(templatePath);
+    }
+    catch (error) {
+        console.error(chalk.red(`Error parsing template: ${error.message}`));
+        process.exit(1);
+    }
+    const gates = template.validation_strategy;
+    if (gates.length === 0) {
+        console.log(chalk.yellow('No validation_strategy defined in template'));
+        process.exit(0);
+    }
+    const repoDir = options.repoDir || process.cwd();
+    console.log(chalk.blue(`\n🔍 Running ${gates.length} validation gates against ${repoDir}\n`));
+    const runner = new ValidationRunner({ cwd: repoDir });
+    runner.on('gateStarted', (config) => {
+        console.log(chalk.blue(`   Running: ${config.gate}`));
+    });
+    runner.on('gatePassed', (result) => {
+        console.log(chalk.green(`   ✓ Passed: ${result.gate} (${result.durationMs}ms)`));
+    });
+    runner.on('gateFailed', (result) => {
+        console.log(chalk.red(`   ✗ Failed: ${result.gate} (${result.failures.length} failures, ${result.durationMs}ms)`));
+    });
+    const result = await runner.run(gates, 0, 1);
+    console.log(chalk.blue('\n📊 Gate Results:'));
+    for (const gate of result.gateResults) {
+        const status = gate.passed ? chalk.green('PASS') : chalk.red('FAIL');
+        console.log(`   ${gate.gate.padEnd(12)} ${status}`);
+    }
+    process.exit(result.allPassed ? 0 : 1);
+});
+program
+    .command('validate-pipeline')
+    .description('Validate a template has all required fields for the full pipeline')
+    .argument('<template>', 'Path to template file')
+    .action((templatePath) => {
+    if (!existsSync(templatePath)) {
+        console.error(chalk.red(`Error: Template file not found: ${templatePath}`));
+        process.exit(1);
+    }
+    const result = validatePipelineTemplate(templatePath);
+    if (result.valid) {
+        console.log(chalk.green('✓ Template is valid for full pipeline use'));
+        process.exit(0);
+    }
+    console.error(chalk.red('✗ Pipeline template validation failed:'));
+    result.errors.forEach(e => console.error(chalk.red(`  - ${e}`)));
+    process.exit(1);
 });
 function displayTaskGraph(tasks) {
     const roots = tasks.filter(t => t.dependsOn.length === 0);

@@ -3,9 +3,17 @@ import * as yaml from 'yaml';
 import { readFileSync } from 'fs';
 import { TaskInput } from '../core/task-queue.js';
 
+// --- Shared schemas ---
+
+// Git URL validator: accepts HTTPS URLs, SSH URLs (git@host:path), and file:// URLs
+const GitUrlSchema = z.string().refine(
+	(val) => val.startsWith('https://') || val.startsWith('http://') || val.startsWith('git@') || val.startsWith('file://'),
+	{ message: 'Must be an HTTPS, SSH, or file:// git URL' }
+);
+
 const ValidationSchema = z.object({
-  command: z.string(),
-  successPattern: z.string(),
+	command: z.string(),
+	successPattern: z.string(),
 }).optional();
 
 // Model is now a string - use `spawnee models` to see available models from the API
@@ -13,150 +21,290 @@ const ModelSchema = z.string();
 
 // Task-level repository override schema
 const TaskRepositorySchema = z.object({
-  url: z.string().url(),
-  branch: z.string().optional(),
+	url: GitUrlSchema,
+	branch: z.string().optional(),
 }).optional();
 
 // Task status for YAML persistence/resume
 const TaskStatusSchema = z.enum(['pending', 'started', 'completed', 'failed']).optional();
 
 const TaskSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  prompt: z.string(),
-  dependsOn: z.array(z.string()).default([]),
-  files: z.array(z.string()).optional(),
-  branch: z.string().optional(),
-  priority: z.number().default(0),
-  timeout: z.number().optional(),
-  retries: z.number().optional(),
-  validation: ValidationSchema,
-  complete: z.boolean().optional(),
-  model: ModelSchema.optional(),              // Task-level model override
-  repository: TaskRepositorySchema,          // Task-level repository override
-  breakpoint: z.boolean().default(false),    // Pause for human review when task completes
-  status: TaskStatusSchema,                  // For YAML persistence/resume
+	id: z.string(),
+	name: z.string(),
+	prompt: z.string(),
+	dependsOn: z.array(z.string()).default([]),
+	files: z.array(z.string()).optional(),
+	branch: z.string().optional(),
+	priority: z.number().default(0),
+	timeout: z.number().optional(),
+	retries: z.number().optional(),
+	validation: ValidationSchema,
+	complete: z.boolean().optional(),
+	model: ModelSchema.optional(),              // Task-level model override
+	repository: TaskRepositorySchema,          // Task-level repository override
+	breakpoint: z.boolean().default(false),    // Pause for human review when task completes
+	status: TaskStatusSchema,                  // For YAML persistence/resume
 });
 
+// --- Template-level schemas ---
+
 const RepositorySchema = z.object({
-  url: z.string().url(),
-  branch: z.string().default('main'),
-  baseBranch: z.string().optional(),
+	url: GitUrlSchema,
+	branch: z.string().default('main'),
+	baseBranch: z.string().optional(),
 });
 
 const DefaultsSchema = z.object({
-  model: ModelSchema.default('auto'),
-  timeout: z.number().default(3600000),
-  retries: z.number().default(2),
-  createPR: z.boolean().default(true),
+	model: ModelSchema.default('auto'),
+	timeout: z.number().default(3600000),
+	retries: z.number().default(2),
+	createPR: z.boolean().default(true),
 }).default({});
 
 const ContextSchema = z.object({
-  files: z.array(z.string()).default([]),
-  instructions: z.string().optional(),
+	files: z.array(z.string()).default([]),
+	instructions: z.string().optional(),
 }).default({});
 
-const TemplateSchema = z.object({
-  name: z.string(),
-  repository: RepositorySchema,
-  defaults: DefaultsSchema,
-  context: ContextSchema,
-  tasks: z.array(TaskSchema).min(1, 'At least one task is required'),
+// --- Pipeline-specific schemas ---
+
+const TaskTypeSchema = z.enum(['feature', 'bugfix', 'refactor']);
+
+const TargetSchema = z.object({
+	repo: GitUrlSchema,
+	branch: z.string().default('main'),
 });
+
+const GateTypeSchema = z.enum(['typecheck', 'unit', 'e2e', 'lint', 'manual']);
+
+const ValidationGateSchema = z.object({
+	gate: GateTypeSchema,
+	command: z.string().optional(),
+	pattern: z.string().optional(),
+	specs: z.array(z.string()).optional(),
+	description: z.string().optional(),
+}).refine(
+	(data) => {
+		if (data.gate === 'manual') return !!data.description;
+		return !!data.command;
+	},
+	{ message: 'Automated gates require "command"; manual gates require "description"' }
+);
+
+const EmsTargetTypeSchema = z.enum(['angular', 'lambda', 'shared-lib']);
+
+const EmsExtensionsSchema = z.object({
+	stage: z.enum(['dev', 'staging', 'prod']),
+	profile: z.string(),
+	target_type: EmsTargetTypeSchema.optional(),
+	app_name: z.string().optional(),
+	function_name: z.string().optional(),
+});
+
+// --- Main template schema ---
+
+const TemplateSchema = z.object({
+	// Existing fields (repository now optional for backward compat with target)
+	name: z.string(),
+	repository: RepositorySchema.optional(),
+	defaults: DefaultsSchema,
+	context: ContextSchema,
+	tasks: z.array(TaskSchema).min(1, 'At least one task is required'),
+
+	// Pipeline fields (all optional for backward compat with execution-only templates)
+	type: TaskTypeSchema.optional(),
+	target: TargetSchema.optional(),
+	id: z.string().optional(),
+	description: z.string().optional(),
+	acceptance_criteria: z.array(z.string()).default([]),
+	priority: z.number().int().min(0).max(4).default(2),
+	max_qa_cycles: z.number().int().min(1).max(10).default(3),
+	validation_strategy: z.array(ValidationGateSchema).default([]),
+	constraints: z.array(z.string()).default([]),
+	scope: z.array(z.string()).default([]),
+	context_files: z.array(z.string()).default([]),
+	ems: EmsExtensionsSchema.optional(),
+}).refine(
+	(data) => !!(data.repository || data.target),
+	{ message: 'Either "repository" or "target" must be provided' }
+);
 
 export type Template = z.infer<typeof TemplateSchema>;
 export type TemplateTask = z.infer<typeof TaskSchema>;
 
-export interface ParsedTemplate {
-  name: string;
-  repository: { url: string; branch: string; baseBranch?: string };
-  defaults: { model: string; timeout: number; retries: number; createPR: boolean };
-  context: { files: string[]; instructions?: string };
-  tasks: TaskInput[];
+// --- Exported interfaces ---
+
+export interface IValidationGate {
+	gate: 'typecheck' | 'unit' | 'e2e' | 'lint' | 'manual';
+	command?: string;
+	pattern?: string;
+	specs?: string[];
+	description?: string;
 }
+
+export interface IEmsExtensions {
+	stage: 'dev' | 'staging' | 'prod';
+	profile: string;
+	target_type?: 'angular' | 'lambda' | 'shared-lib';
+	app_name?: string;
+	function_name?: string;
+}
+
+export interface ParsedTemplate {
+	name: string;
+	repository: { url: string; branch: string; baseBranch?: string };
+	defaults: { model: string; timeout: number; retries: number; createPR: boolean };
+	context: { files: string[]; instructions?: string };
+	tasks: TaskInput[];
+
+	// Pipeline fields
+	type?: 'feature' | 'bugfix' | 'refactor';
+	id?: string;
+	description?: string;
+	acceptance_criteria: string[];
+	priority: number;
+	max_qa_cycles: number;
+	validation_strategy: IValidationGate[];
+	constraints: string[];
+	scope: string[];
+	context_files: string[];
+	ems?: IEmsExtensions;
+}
+
+// --- Parse function ---
 
 export function parseTemplate(filePath: string): ParsedTemplate {
-  const content = readFileSync(filePath, 'utf-8');
-  const isYaml = filePath.endsWith('.yaml') || filePath.endsWith('.yml');
-  const raw = isYaml ? yaml.parse(content) : JSON.parse(content);
-  const validated = TemplateSchema.parse(raw);
+	const content = readFileSync(filePath, 'utf-8');
+	const isYaml = filePath.endsWith('.yaml') || filePath.endsWith('.yml');
+	const raw = isYaml ? yaml.parse(content) : JSON.parse(content);
 
-  const tasks: TaskInput[] = validated.tasks.map(t => ({
-    id: t.id,
-    name: t.name,
-    prompt: t.prompt,
-    dependsOn: t.dependsOn,
-    priority: t.priority,
-    branch: t.branch,
-    files: t.files,
-    timeout: t.timeout ?? validated.defaults.timeout,
-    retries: t.retries ?? validated.defaults.retries,
-    validation: t.validation,
-    complete: t.complete || t.status === 'completed',  // Treat status: "completed" same as complete: true
-    model: t.model ?? validated.defaults.model,        // Task model, fallback to default
-    repository: t.repository,                          // Task-level repository override
-    breakpoint: t.breakpoint,                          // Breakpoint for human review
-  }));
+	// Normalize target → repository if target is provided and repository is not
+	if (raw.target && !raw.repository) {
+		raw.repository = {
+			url: raw.target.repo,
+			branch: raw.target.branch || 'main',
+		};
+	}
 
-  validateDependencies(tasks);
+	const validated = TemplateSchema.parse(raw);
 
-  return {
-    name: validated.name,
-    repository: validated.repository,
-    defaults: validated.defaults,
-    context: validated.context,
-    tasks,
-  };
+	const tasks: TaskInput[] = validated.tasks.map(t => ({
+		id: t.id,
+		name: t.name,
+		prompt: t.prompt,
+		dependsOn: t.dependsOn,
+		priority: t.priority,
+		branch: t.branch,
+		files: t.files,
+		timeout: t.timeout ?? validated.defaults.timeout,
+		retries: t.retries ?? validated.defaults.retries,
+		validation: t.validation,
+		complete: t.complete || t.status === 'completed',  // Treat status: "completed" same as complete: true
+		model: t.model ?? validated.defaults.model,        // Task model, fallback to default
+		repository: t.repository,                          // Task-level repository override
+		breakpoint: t.breakpoint,                          // Breakpoint for human review
+	}));
+
+	validateDependencies(tasks);
+
+	return {
+		name: validated.name,
+		repository: validated.repository!,  // Safe: refine guarantees repository or target exists, and we normalize target→repository
+		defaults: validated.defaults,
+		context: validated.context,
+		tasks,
+		type: validated.type,
+		id: validated.id,
+		description: validated.description,
+		acceptance_criteria: validated.acceptance_criteria,
+		priority: validated.priority,
+		max_qa_cycles: validated.max_qa_cycles,
+		validation_strategy: validated.validation_strategy as IValidationGate[],
+		constraints: validated.constraints,
+		scope: validated.scope,
+		context_files: validated.context_files,
+		ems: validated.ems,
+	};
 }
 
+// --- Dependency validation ---
+
 function validateDependencies(tasks: TaskInput[]): void {
-  const taskIds = new Set(tasks.map(t => t.id));
-  const errors: string[] = [];
+	const taskIds = new Set(tasks.map(t => t.id));
+	const errors: string[] = [];
 
-  for (const task of tasks) {
-    for (const depId of task.dependsOn) {
-      if (!taskIds.has(depId)) errors.push(`Task "${task.id}" depends on unknown task "${depId}"`);
-    }
-  }
+	for (const task of tasks) {
+		for (const depId of task.dependsOn) {
+			if (!taskIds.has(depId)) errors.push(`Task "${task.id}" depends on unknown task "${depId}"`);
+		}
+	}
 
-  if (hasCycle(tasks)) errors.push('Circular dependency detected in task graph');
-  if (errors.length > 0) throw new Error(`Template validation failed:\n${errors.join('\n')}`);
+	if (hasCycle(tasks)) errors.push('Circular dependency detected in task graph');
+	if (errors.length > 0) throw new Error(`Template validation failed:\n${errors.join('\n')}`);
 }
 
 function hasCycle(tasks: TaskInput[]): boolean {
-  const visited = new Set<string>();
-  const recursionStack = new Set<string>();
-  const taskMap = new Map(tasks.map(t => [t.id, t]));
+	const visited = new Set<string>();
+	const recursionStack = new Set<string>();
+	const taskMap = new Map(tasks.map(t => [t.id, t]));
 
-  function dfs(taskId: string): boolean {
-    visited.add(taskId);
-    recursionStack.add(taskId);
-    const task = taskMap.get(taskId);
-    if (!task) return false;
+	function dfs(taskId: string): boolean {
+		visited.add(taskId);
+		recursionStack.add(taskId);
+		const task = taskMap.get(taskId);
+		if (!task) return false;
 
-    for (const depId of task.dependsOn) {
-      if (!visited.has(depId) && dfs(depId)) return true;
-      if (recursionStack.has(depId)) return true;
-    }
+		for (const depId of task.dependsOn) {
+			if (!visited.has(depId) && dfs(depId)) return true;
+			if (recursionStack.has(depId)) return true;
+		}
 
-    recursionStack.delete(taskId);
-    return false;
-  }
+		recursionStack.delete(taskId);
+		return false;
+	}
 
-  for (const task of tasks) {
-    if (!visited.has(task.id) && dfs(task.id)) return true;
-  }
+	for (const task of tasks) {
+		if (!visited.has(task.id) && dfs(task.id)) return true;
+	}
 
-  return false;
+	return false;
 }
+
+// --- Validation functions ---
 
 export function validateTemplateFile(filePath: string): { valid: boolean; errors: string[] } {
-  try {
-    parseTemplate(filePath);
-    return { valid: true, errors: [] };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { valid: false, errors: [message] };
-  }
+	try {
+		parseTemplate(filePath);
+		return { valid: true, errors: [] };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { valid: false, errors: [message] };
+	}
 }
 
+/**
+ * Validates that a template has all required fields for the full pipeline
+ * (planning → execution → validation → artifact generation).
+ * Stricter than parseTemplate() which allows execution-only templates.
+ */
+export function validatePipelineTemplate(filePath: string): { valid: boolean; errors: string[] } {
+	try {
+		const template = parseTemplate(filePath);
+		const errors: string[] = [];
+
+		if (!template.type) {
+			errors.push('Pipeline templates require "type" (feature | bugfix | refactor)');
+		}
+		if (!template.description) {
+			errors.push('Pipeline templates require "description"');
+		}
+		if (template.acceptance_criteria.length === 0) {
+			errors.push('Pipeline templates require at least one entry in "acceptance_criteria"');
+		}
+
+		return { valid: errors.length === 0, errors };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return { valid: false, errors: [message] };
+	}
+}

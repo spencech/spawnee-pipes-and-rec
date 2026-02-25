@@ -1,23 +1,106 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["name", "repository", "tasks"],
+  "required": ["name", "tasks"],
+  "anyOf": [
+    { "required": ["repository"] },
+    { "required": ["target"] }
+  ],
   "properties": {
     "name": { "type": "string", "description": "Plan/template name" },
+    "type": {
+      "type": "string",
+      "enum": ["feature", "bugfix", "refactor"],
+      "description": "Task type — determines planning heuristics and default validation strategies"
+    },
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for tracking (auto-generated if omitted)"
+    },
+    "description": {
+      "type": "string",
+      "description": "What needs to change and why"
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Concrete, testable conditions for success"
+    },
+    "priority": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 4,
+      "default": 2,
+      "description": "0=critical, 1=high, 2=medium, 3=low, 4=backlog"
+    },
+    "max_qa_cycles": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 3,
+      "description": "Maximum QA validation cycles before human escalation"
+    },
     "repository": {
       "type": "object",
       "required": ["url"],
       "properties": {
-        "url": { "type": "string" },
+        "url": { "type": "string", "description": "Repository URL (HTTPS or SSH)" },
         "branch": { "type": "string", "default": "main" },
         "baseBranch": { "type": "string" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "required": ["repo"],
+      "properties": {
+        "repo": { "type": "string", "description": "Repository URL (HTTPS or SSH)" },
+        "branch": { "type": "string", "default": "main" }
+      }
+    },
+    "validation_strategy": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["gate"],
+        "properties": {
+          "gate": { "type": "string", "enum": ["typecheck", "unit", "e2e", "lint", "manual"] },
+          "command": { "type": "string", "description": "Command to run (required for automated gates)" },
+          "pattern": { "type": "string", "description": "File pattern filter for the gate" },
+          "specs": { "type": "array", "items": { "type": "string" }, "description": "Specific test specs to run (e2e)" },
+          "description": { "type": "string", "description": "Description for manual review gates" }
+        }
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Behavioral limits for agents (what NOT to do)"
+    },
+    "scope": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files or directories to focus on"
+    },
+    "context_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Additional files to read before planning"
+    },
+    "ems": {
+      "type": "object",
+      "properties": {
+        "stage": { "type": "string", "enum": ["dev", "staging", "prod"] },
+        "profile": { "type": "string" },
+        "target_type": { "type": "string", "enum": ["angular", "lambda", "shared-lib"] },
+        "app_name": { "type": "string" },
+        "function_name": { "type": "string" }
       }
     },
     "defaults": {
       "type": "object",
       "properties": {
         "model": { "type": "string", "default": "auto" },
-        "timeout": { "type": "number", "default": 3600 },
+        "timeout": { "type": "number", "default": 3600000 },
         "retries": { "type": "number", "default": 2 },
         "createPR": { "type": "boolean", "default": true }
       }
@@ -44,7 +127,17 @@
           "priority": { "type": "number", "default": 0 },
           "timeout": { "type": "number" },
           "retries": { "type": "number" },
-          "complete": { "type": "boolean", "description": "Mark task as already completed - dependencies will not wait for it" },
+          "model": { "type": "string" },
+          "breakpoint": { "type": "boolean", "default": false },
+          "complete": { "type": "boolean", "description": "Mark task as already completed" },
+          "status": { "type": "string", "enum": ["pending", "started", "completed", "failed"] },
+          "repository": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string" },
+              "branch": { "type": "string" }
+            }
+          },
           "validation": {
             "type": "object",
             "properties": {
@@ -57,4 +150,3 @@
     }
   }
 }
-

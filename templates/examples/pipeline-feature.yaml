@@ -1,0 +1,96 @@
+name: "PD-456: Bulk User Import"
+type: feature
+id: "PD-456"
+priority: 1
+
+target:
+  repo: "https://github.com/ems/admin-portal.git"
+  branch: "develop"
+
+description: |
+  Add a bulk user import feature to the admin portal.
+  Users should be able to upload a CSV file with user records,
+  preview the import, and confirm. The backend should validate
+  each row and return a detailed error report for invalid entries.
+
+acceptance_criteria:
+  - "CSV upload component accepts .csv files up to 10MB"
+  - "Preview table shows first 10 rows with validation status per row"
+  - "Confirm button triggers POST /api/users/bulk-import"
+  - "Backend returns { imported: number, errors: { row: number, field: string, message: string }[] }"
+  - "Invalid rows do not prevent valid rows from importing"
+  - "E2E test covers: upload, preview, confirm, and error display flows"
+
+max_qa_cycles: 3
+
+validation_strategy:
+  - gate: typecheck
+    command: "npx tsc --noEmit"
+  - gate: unit
+    command: "npx karma start --single-run"
+  - gate: e2e
+    command: "npx cypress run"
+    specs:
+      - "cypress/e2e/bulk-import.cy.ts"
+  - gate: manual
+    description: "Review the API contract changes before merging"
+
+constraints:
+  - "Use the existing FileUploadComponent from ems-web-app-utils"
+  - "Follow the AbstractRoute pattern for the new Lambda endpoint"
+  - "Do not introduce new npm dependencies without justification"
+
+scope:
+  - "src/app/admin/users/"
+  - "lambda/routes/users/"
+
+context_files:
+  - "docs/api-design.md"
+  - "CHANGELOG.md"
+
+ems:
+  stage: "dev"
+  profile: "ems-dev"
+  target_type: "angular"
+
+defaults:
+  model: "composer-1"
+  timeout: 3600000
+  retries: 2
+
+context:
+  instructions: |
+    You are implementing features for the EMS admin portal.
+    Follow existing code patterns and conventions.
+
+tasks:
+  - id: "setup-branch"
+    name: "Create feature branch and scaffold"
+    branch: "cursor/spawnee/PD-456-setup"
+    prompt: |
+      Create the feature branch and scaffold the component structure
+      for the bulk user import feature.
+
+  - id: "implement-upload"
+    name: "Implement CSV upload and preview"
+    branch: "cursor/spawnee/PD-456-upload"
+    dependsOn: ["setup-branch"]
+    prompt: |
+      Implement the CSV upload component and preview table.
+      Use the existing FileUploadComponent from ems-web-app-utils.
+
+  - id: "implement-backend"
+    name: "Implement bulk import API endpoint"
+    branch: "cursor/spawnee/PD-456-backend"
+    dependsOn: ["setup-branch"]
+    prompt: |
+      Implement the POST /api/users/bulk-import endpoint.
+      Follow the AbstractRoute pattern.
+
+  - id: "integration"
+    name: "Integration and E2E tests"
+    branch: "cursor/spawnee/PD-456-integration"
+    dependsOn: ["implement-upload", "implement-backend"]
+    prompt: |
+      Connect the frontend upload to the backend API.
+      Write E2E tests covering the full flow.
