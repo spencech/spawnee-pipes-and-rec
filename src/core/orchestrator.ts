@@ -8,6 +8,31 @@ import { Config } from '../utils/config.js';
 import { YamlPersistence } from '../storage/yaml-persistence.js';
 import { promptBreakpoint } from '../utils/breakpoint-handler.js';
 
+const BEADS_SETUP_PREAMBLE = `## Environment Setup: Beads
+
+This project uses beads (bd) for issue tracking. Set up before running any bd commands:
+
+1. Install Dolt (database engine):
+   \`\`\`bash
+   curl -L https://github.com/dolthub/dolt/releases/latest/download/install.sh | sudo bash
+   \`\`\`
+
+2. Start the Dolt server (run in background):
+   \`\`\`bash
+   cd .beads/dolt && dolt sql-server -H 127.0.0.1 -P 3307 &
+   \`\`\`
+
+3. Use beads via npx (no global install needed):
+   \`\`\`bash
+   npx bd list
+   npx bd create --title="..." --description="..." --type=bug --priority=2
+   \`\`\`
+
+Notes:
+- Do NOT run \`bd init\` if \`.beads/\` already exists in the repo
+- Dolt must be running before any bd commands that touch the database
+- If \`dolt sql-server\` fails, ensure you are running from a directory with \`dolt init\` (e.g. \`.beads/dolt\`)`;
+
 export interface OrchestratorOptions {
   config: Config;
   stateStore?: StateStore;
@@ -17,6 +42,7 @@ export interface OrchestratorOptions {
   globalFiles?: string[];
   defaultModel?: string;
   yamlPersistence?: YamlPersistence;
+  beadsEnabled?: boolean;
 }
 
 export class Orchestrator extends EventEmitter {
@@ -171,6 +197,10 @@ export class Orchestrator extends EventEmitter {
   private buildPrompt(task: Task): string {
     const parts: string[] = [];
 
+    if (this.options.beadsEnabled) {
+      parts.push(BEADS_SETUP_PREAMBLE);
+    }
+
     if (this.options.globalContext) {
       parts.push(`## Global Instructions\n${this.options.globalContext}`);
     }
@@ -243,19 +273,19 @@ export class Orchestrator extends EventEmitter {
       parts.push(
         `## Beads Integration\n\n` +
         `This task corresponds to beads issue \`${task.beadsIssueId}\`.\n\n` +
-        `1. Claim the issue: \`bd update ${task.beadsIssueId} --status=in_progress\`\n\n` +
+        `1. Claim the issue: \`npx bd update ${task.beadsIssueId} --status=in_progress\`\n\n` +
         `2. Before closing, write an implementation brief:\n` +
         `   \`\`\`bash\n` +
-        `   bd update ${task.beadsIssueId} --design="<brief>"\n` +
+        `   npx bd update ${task.beadsIssueId} --design="<brief>"\n` +
         `   \`\`\`\n` +
         `   The brief should cover:\n` +
         `   - Approach taken and why\n` +
         `   - Key files created or modified\n` +
         `   - Patterns followed from the existing codebase\n` +
         `   - Tradeoffs considered or constraints encountered\n\n` +
-        `3. Close the issue: \`bd close ${task.beadsIssueId}\`\n\n` +
+        `3. Close the issue: \`npx bd close ${task.beadsIssueId}\`\n\n` +
         `4. If you discover bugs, tech debt, or new work:\n` +
-        `   \`bd create --title="..." --description="..." --type=bug --priority=2\``
+        `   \`npx bd create --title="..." --description="..." --type=bug --priority=2\``
       );
     }
 

@@ -12,6 +12,7 @@ export interface OrchestratorOptions {
     globalFiles?: string[];
     defaultModel?: string;
     yamlPersistence?: YamlPersistence;
+    beadsEnabled?: boolean;
 }
 export declare class Orchestrator extends EventEmitter {
     private client;

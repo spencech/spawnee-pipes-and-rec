@@ -90,6 +90,7 @@ export class PipelineController extends EventEmitter {
                 globalFiles: template.context.files,
                 defaultModel: template.defaults.model,
                 yamlPersistence: this.options.yamlPersistence,
+                beadsEnabled: tasks.some(t => t.beadsIssueId),
             };
             const orchestrator = new Orchestrator(orchestratorOptions);
             // Forward orchestrator events
@@ -209,7 +210,7 @@ export class PipelineController extends EventEmitter {
             `QA failure issues: ${issueIds.join(', ')}\n\n` +
             `After fixing all issues:\n` +
             `1. Run the failing gate commands to verify your fixes\n` +
-            `2. Close the related beads issues with \`bd close ${issueIds.join(' ')}\`\n` +
+            `2. Close the related beads issues with \`npx bd close ${issueIds.join(' ')}\`\n` +
             `3. Commit and push your changes\n\n` +
             `## Important\n` +
             `- Only fix the specific failures listed above\n` +

@@ -192,6 +192,7 @@ program
         globalFiles: template.context.files,
         defaultModel: template.defaults.model,
         yamlPersistence,
+        beadsEnabled: template.tasks.some(t => t.beadsIssueId),
     });
     const spinner = ora('Starting orchestration...').start();
     orchestrator.on('started', (status) => {
