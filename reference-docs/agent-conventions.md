@@ -15,8 +15,9 @@ Orient → Claim → Work → Complete → Report
 1. **Orient** — Read the task prompt, understand the beads issue, and merge any dependency branches
 2. **Claim** — Mark the issue as in-progress: `bd update <id> --status=in_progress`
 3. **Work** — Implement the change, following the conventions below
-4. **Complete** — Close the issue: `bd close <id>`
-5. **Report** — Commit, push, and ensure the branch is clean
+4. **Brief** — Write an implementation brief before closing (see below)
+5. **Complete** — Close the issue: `bd close <id>`
+6. **Report** — Commit, push, and ensure the branch is clean
 
 If you cannot complete the task, do NOT close the issue. Instead, file a blocking issue and leave the original open (see Failure Protocol below).
 
@@ -52,6 +53,24 @@ bd dep add <your-task-id> <blocker-id>
 ```
 
 Leave your task issue open. Do not close it or mark it as complete.
+
+---
+
+## Implementation Brief
+
+Before closing your beads issue, document your implementation approach:
+
+```bash
+bd update <issue-id> --design="Approach: <what you did and why>. Key files: <list>. Patterns: <what you followed>. Tradeoffs: <decisions made>."
+```
+
+This brief is read by QA retry agents if validation gates fail. Write it as if explaining your work to a colleague who needs to fix a bug in it.
+
+The brief should cover:
+- **Approach** — what you did and why you chose that path
+- **Key files** — files created or significantly modified
+- **Patterns** — existing codebase patterns you followed
+- **Tradeoffs** — constraints encountered or decisions that could have gone either way
 
 ---
 

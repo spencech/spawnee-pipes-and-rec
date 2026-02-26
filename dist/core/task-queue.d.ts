@@ -20,6 +20,7 @@ export interface Task {
         branch?: string;
     };
     breakpoint?: boolean;
+    beadsIssueId?: string;
     status: TaskStatus;
     agentId?: string;
     attempts: number;

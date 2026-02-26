@@ -67,6 +67,7 @@ tasks:
   - id: "setup-branch"
     name: "Create feature branch and scaffold"
     branch: "cursor/spawnee/PD-456-setup"
+    beadsIssueId: "beads-001"
     prompt: |
       Create the feature branch and scaffold the component structure
       for the bulk user import feature.
@@ -75,6 +76,7 @@ tasks:
     name: "Implement CSV upload and preview"
     branch: "cursor/spawnee/PD-456-upload"
     dependsOn: ["setup-branch"]
+    beadsIssueId: "beads-002"
     prompt: |
       Implement the CSV upload component and preview table.
       Use the existing FileUploadComponent from ems-web-app-utils.
@@ -83,6 +85,7 @@ tasks:
     name: "Implement bulk import API endpoint"
     branch: "cursor/spawnee/PD-456-backend"
     dependsOn: ["setup-branch"]
+    beadsIssueId: "beads-003"
     prompt: |
       Implement the POST /api/users/bulk-import endpoint.
       Follow the AbstractRoute pattern.
@@ -91,6 +94,7 @@ tasks:
     name: "Integration and E2E tests"
     branch: "cursor/spawnee/PD-456-integration"
     dependsOn: ["implement-upload", "implement-backend"]
+    beadsIssueId: "beads-004"
     prompt: |
       Connect the frontend upload to the backend API.
       Write E2E tests covering the full flow.

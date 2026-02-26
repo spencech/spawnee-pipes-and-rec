@@ -33,6 +33,7 @@ const TaskSchema = z.object({
     repository: TaskRepositorySchema, // Task-level repository override
     breakpoint: z.boolean().default(false), // Pause for human review when task completes
     status: TaskStatusSchema, // For YAML persistence/resume
+    beadsIssueId: z.string().optional(), // Beads issue ID for context bridging
 });
 // --- Template-level schemas ---
 const RepositorySchema = z.object({
@@ -126,6 +127,7 @@ export function parseTemplate(filePath) {
         model: t.model ?? validated.defaults.model, // Task model, fallback to default
         repository: t.repository, // Task-level repository override
         breakpoint: t.breakpoint, // Breakpoint for human review
+        beadsIssueId: t.beadsIssueId, // Beads issue ID for context bridging
     }));
     validateDependencies(tasks);
     return {

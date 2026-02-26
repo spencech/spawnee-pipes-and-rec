@@ -12,6 +12,7 @@ import { Logger } from '../utils/logger.js';
 import { StateStore } from '../storage/state-store.js';
 import { YamlPersistence } from '../storage/yaml-persistence.js';
 import * as git from '../utils/git.js';
+import { readBeadsBrief } from '../utils/beads.js';
 
 export interface IPipelineOptions {
 	config: Config;
@@ -93,7 +94,7 @@ export class PipelineController extends EventEmitter {
 			this.emit('issuesCreated', { cycle, issueIds });
 
 			// Generate retry tasks from the created issues
-			currentTasks = this.generateRetryTasks(issueIds, failedGateResults, cycle);
+			currentTasks = await this.generateRetryTasks(issueIds, failedGateResults, cycle);
 			this.logger.info(`Generated ${currentTasks.length} retry tasks for cycle ${cycle + 2}`);
 		}
 
@@ -208,15 +209,15 @@ export class PipelineController extends EventEmitter {
 		}
 	}
 
-	private generateRetryTasks(
+	private async generateRetryTasks(
 		issueIds: string[],
 		failedGateResults: { gate: string; failures: { message: string; file?: string; line?: number }[] }[],
 		cycle: number
-	): TaskInput[] {
+	): Promise<TaskInput[]> {
 		const { template } = this.options;
 		const tasks: TaskInput[] = [];
 
-		// Build a prompt for each failure group
+		// Build failure summary (unchanged)
 		const failureSummary = failedGateResults
 			.map(r => {
 				const details = r.failures
@@ -230,27 +231,81 @@ export class PipelineController extends EventEmitter {
 			})
 			.join('\n\n');
 
+		// Collect implementation briefs from original tasks that have beadsIssueIds
+		const briefEntries: string[] = [];
+		for (const task of template.tasks) {
+			if (!task.beadsIssueId) continue;
+			const brief = await readBeadsBrief(task.beadsIssueId, this.options.repoWorkDir);
+			if (brief) {
+				briefEntries.push(`- **${task.beadsIssueId}** (${task.name}): ${brief}`);
+			}
+		}
+
+		// Collect branch names from original tasks
+		const branchEntries = template.tasks
+			.filter(t => t.branch)
+			.map(t => `- origin/${t.branch}`);
+
+		// Build the enriched prompt
+		const promptParts: string[] = [];
+
+		promptParts.push('## QA Fix Task');
+
+		// Prior implementation context from beads briefs
+		if (briefEntries.length > 0) {
+			promptParts.push(
+				`### Prior Implementation Context\n` +
+				`The original agents documented their approach in these beads issues:\n` +
+				briefEntries.join('\n')
+			);
+		}
+
+		// Original task scope
+		const taskSummaries = template.tasks
+			.map(t => `- **${t.name}** (\`${t.id}\`): ${t.prompt.split('\n')[0]}`)
+			.join('\n');
+		promptParts.push(`### Original Task Scope\n${taskSummaries}`);
+
+		// Branches to merge
+		if (branchEntries.length > 0) {
+			promptParts.push(
+				`### Branches to Merge\n` +
+				`Before starting, merge these branches:\n` +
+				branchEntries.join('\n')
+			);
+		}
+
+		// Failures to fix
+		promptParts.push(`### Failures to Fix\n\nThe following validation gates failed. Fix the issues described below.\n\n${failureSummary}`);
+
+		// Constraints from template
+		if (template.constraints.length > 0) {
+			promptParts.push(`### Constraints\n${template.constraints.map(c => `- ${c}`).join('\n')}`);
+		}
+
+		// Scope hints from template
+		if (template.scope.length > 0) {
+			promptParts.push(`### Scope\nFocus on these areas:\n${template.scope.map(s => `- ${s}`).join('\n')}`);
+		}
+
+		// Beads issues and closing instructions
+		promptParts.push(
+			`### Beads Issues\n` +
+			`QA failure issues: ${issueIds.join(', ')}\n\n` +
+			`After fixing all issues:\n` +
+			`1. Run the failing gate commands to verify your fixes\n` +
+			`2. Close the related beads issues with \`bd close ${issueIds.join(' ')}\`\n` +
+			`3. Commit and push your changes\n\n` +
+			`## Important\n` +
+			`- Only fix the specific failures listed above\n` +
+			`- Do not refactor or change unrelated code\n` +
+			`- Verify your fixes pass the relevant gate commands before completing`
+		);
+
 		tasks.push({
 			id: `qa-fix-c${cycle + 1}`,
 			name: `QA Fix — Cycle ${cycle + 2}`,
-			prompt: `## QA Fix Task
-
-The following validation gates failed. Fix the issues described below.
-
-${failureSummary}
-
-## Beads Issues
-The following beads issues were created for these failures: ${issueIds.join(', ')}
-
-After fixing all issues:
-1. Run the failing gate commands to verify your fixes
-2. Close the related beads issues with \`bd close <id>\`
-3. Commit and push your changes
-
-## Important
-- Only fix the specific failures listed above
-- Do not refactor or change unrelated code
-- Verify your fixes pass the relevant gate commands before completing`,
+			prompt: promptParts.join('\n\n'),
 			dependsOn: [],
 			priority: 100,
 			branch: `cursor/spawnee/qa-fix-c${cycle + 2}`,

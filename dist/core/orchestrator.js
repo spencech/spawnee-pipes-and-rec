@@ -188,6 +188,23 @@ export class Orchestrator extends EventEmitter {
         if (task.validation) {
             parts.push(`## Validation\nAfter completing the task, verify by running:\n\`${task.validation.command}\`\nExpected output should match: ${task.validation.successPattern}`);
         }
+        if (task.beadsIssueId) {
+            parts.push(`## Beads Integration\n\n` +
+                `This task corresponds to beads issue \`${task.beadsIssueId}\`.\n\n` +
+                `1. Claim the issue: \`bd update ${task.beadsIssueId} --status=in_progress\`\n\n` +
+                `2. Before closing, write an implementation brief:\n` +
+                `   \`\`\`bash\n` +
+                `   bd update ${task.beadsIssueId} --design="<brief>"\n` +
+                `   \`\`\`\n` +
+                `   The brief should cover:\n` +
+                `   - Approach taken and why\n` +
+                `   - Key files created or modified\n` +
+                `   - Patterns followed from the existing codebase\n` +
+                `   - Tradeoffs considered or constraints encountered\n\n` +
+                `3. Close the issue: \`bd close ${task.beadsIssueId}\`\n\n` +
+                `4. If you discover bugs, tech debt, or new work:\n` +
+                `   \`bd create --title="..." --description="..." --type=bug --priority=2\``);
+        }
         return parts.join('\n\n');
     }
     handleAgentComplete(agentId, agent) {

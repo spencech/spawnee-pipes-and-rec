@@ -15,6 +15,7 @@ export interface Task {
   model?: string;                                    // Task-level model override
   repository?: { url: string; branch?: string };     // Task-level repository override
   breakpoint?: boolean;                              // Pause for human review when task completes
+  beadsIssueId?: string;                             // Beads issue ID for context bridging
   status: TaskStatus;
   agentId?: string;
   attempts: number;

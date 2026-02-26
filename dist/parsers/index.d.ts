@@ -34,6 +34,7 @@ declare const TaskSchema: z.ZodObject<{
     }>>;
     breakpoint: z.ZodDefault<z.ZodBoolean>;
     status: z.ZodOptional<z.ZodEnum<["pending", "started", "completed", "failed"]>>;
+    beadsIssueId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     id: string;
     name: string;
@@ -56,6 +57,7 @@ declare const TaskSchema: z.ZodObject<{
         url: string;
         branch?: string | undefined;
     } | undefined;
+    beadsIssueId?: string | undefined;
 }, {
     id: string;
     name: string;
@@ -78,6 +80,7 @@ declare const TaskSchema: z.ZodObject<{
         branch?: string | undefined;
     } | undefined;
     breakpoint?: boolean | undefined;
+    beadsIssueId?: string | undefined;
 }>;
 declare const TemplateSchema: z.ZodEffects<z.ZodObject<{
     name: z.ZodString;
@@ -154,6 +157,7 @@ declare const TemplateSchema: z.ZodEffects<z.ZodObject<{
         }>>;
         breakpoint: z.ZodDefault<z.ZodBoolean>;
         status: z.ZodOptional<z.ZodEnum<["pending", "started", "completed", "failed"]>>;
+        beadsIssueId: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         id: string;
         name: string;
@@ -176,6 +180,7 @@ declare const TemplateSchema: z.ZodEffects<z.ZodObject<{
             url: string;
             branch?: string | undefined;
         } | undefined;
+        beadsIssueId?: string | undefined;
     }, {
         id: string;
         name: string;
@@ -198,6 +203,7 @@ declare const TemplateSchema: z.ZodEffects<z.ZodObject<{
             branch?: string | undefined;
         } | undefined;
         breakpoint?: boolean | undefined;
+        beadsIssueId?: string | undefined;
     }>, "many">;
     type: z.ZodOptional<z.ZodEnum<["feature", "bugfix", "refactor"]>>;
     target: z.ZodOptional<z.ZodObject<{
@@ -293,6 +299,7 @@ declare const TemplateSchema: z.ZodEffects<z.ZodObject<{
             url: string;
             branch?: string | undefined;
         } | undefined;
+        beadsIssueId?: string | undefined;
     }[];
     acceptance_criteria: string[];
     defaults: {
@@ -359,6 +366,7 @@ declare const TemplateSchema: z.ZodEffects<z.ZodObject<{
             branch?: string | undefined;
         } | undefined;
         breakpoint?: boolean | undefined;
+        beadsIssueId?: string | undefined;
     }[];
     target?: {
         repo: string;
@@ -427,6 +435,7 @@ declare const TemplateSchema: z.ZodEffects<z.ZodObject<{
             url: string;
             branch?: string | undefined;
         } | undefined;
+        beadsIssueId?: string | undefined;
     }[];
     acceptance_criteria: string[];
     defaults: {
@@ -493,6 +502,7 @@ declare const TemplateSchema: z.ZodEffects<z.ZodObject<{
             branch?: string | undefined;
         } | undefined;
         breakpoint?: boolean | undefined;
+        beadsIssueId?: string | undefined;
     }[];
     target?: {
         repo: string;
