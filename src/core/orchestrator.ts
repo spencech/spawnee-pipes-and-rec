@@ -10,16 +10,22 @@ import { promptBreakpoint } from '../utils/breakpoint-handler.js';
 
 const BEADS_SETUP_PREAMBLE = `## Environment Setup: Beads
 
-This project uses beads (bd) for issue tracking. Set up before running any bd commands:
+This project uses beads (bd) for issue tracking. The \`.beads/\` directory is already committed to the repo with issue data, but the Dolt database directory (\`.beads/dolt/\`) is gitignored and must be initialized locally.
+
+Run these steps before any bd commands:
 
 1. Install Dolt (database engine):
    \`\`\`bash
    curl -L https://github.com/dolthub/dolt/releases/latest/download/install.sh | sudo bash
    \`\`\`
 
-2. Start the Dolt server (run in background):
+2. Initialize and start the Dolt server:
    \`\`\`bash
-   cd .beads/dolt && dolt sql-server -H 127.0.0.1 -P 3307 &
+   mkdir -p .beads/dolt
+   cd .beads/dolt
+   dolt init
+   dolt sql-server -H 127.0.0.1 -P 3307 &
+   cd ../..
    \`\`\`
 
 3. Use beads via npx (no global install needed):
@@ -28,10 +34,10 @@ This project uses beads (bd) for issue tracking. Set up before running any bd co
    npx bd create --title="..." --description="..." --type=bug --priority=2
    \`\`\`
 
-Notes:
-- Do NOT run \`bd init\` if \`.beads/\` already exists in the repo
-- Dolt must be running before any bd commands that touch the database
-- If \`dolt sql-server\` fails, ensure you are running from a directory with \`dolt init\` (e.g. \`.beads/dolt\`)`;
+Important:
+- Do NOT run \`bd init\` — the \`.beads/\` config and issues already exist in the repo
+- DO run \`dolt init\` inside \`.beads/dolt/\` — this creates only the local database that is gitignored
+- Dolt must be running before any bd commands that touch the database`;
 
 export interface OrchestratorOptions {
   config: Config;
