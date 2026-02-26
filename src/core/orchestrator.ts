@@ -10,34 +10,43 @@ import { promptBreakpoint } from '../utils/breakpoint-handler.js';
 
 const BEADS_SETUP_PREAMBLE = `## Environment Setup: Beads
 
-This project uses beads (bd) for issue tracking. The \`.beads/\` directory is already committed to the repo with issue data, but the Dolt database directory (\`.beads/dolt/\`) is gitignored and must be initialized locally.
+This project uses beads (bd) for issue tracking. Complete these steps in order before running any bd commands.
 
-Run these steps before any bd commands:
+### 1. Install Dolt (system binary)
+\`\`\`bash
+curl -L https://github.com/dolthub/dolt/releases/latest/download/install.sh | sudo bash
+\`\`\`
 
-1. Install Dolt (database engine):
-   \`\`\`bash
-   curl -L https://github.com/dolthub/dolt/releases/latest/download/install.sh | sudo bash
-   \`\`\`
+### 2. Install Beads (project dependency)
+\`\`\`bash
+npm install --save-dev @beads/bd
+\`\`\`
 
-2. Initialize and start the Dolt server:
-   \`\`\`bash
-   mkdir -p .beads/dolt
-   cd .beads/dolt
-   dolt init
-   dolt sql-server -H 127.0.0.1 -P 3307 &
-   cd ../..
-   \`\`\`
+### 3. Create and initialize Dolt directory (only if .beads/dolt does not exist)
+\`\`\`bash
+mkdir -p .beads/dolt
+cd .beads/dolt
+dolt init
+cd ../..
+\`\`\`
 
-3. Use beads via npx (no global install needed):
-   \`\`\`bash
-   npx bd list
-   npx bd create --title="..." --description="..." --type=bug --priority=2
-   \`\`\`
+### 4. Start Dolt SQL server
+\`\`\`bash
+cd .beads/dolt && dolt sql-server -H 127.0.0.1 -P 3307 &
+cd ../..
+\`\`\`
+Run in the background; Beads expects port 3307 by default. Dolt must be running before any bd commands that touch the database.
 
-Important:
-- Do NOT run \`bd init\` — the \`.beads/\` config and issues already exist in the repo
-- DO run \`dolt init\` inside \`.beads/dolt/\` — this creates only the local database that is gitignored
-- Dolt must be running before any bd commands that touch the database`;
+### 5. Initialize Beads (only if .beads/ does not exist)
+\`\`\`bash
+npx bd init
+\`\`\`
+Skip this step if \`.beads/\` is already present in the repo.
+
+### 6. Verify setup
+\`\`\`bash
+npx bd list
+\`\`\``;
 
 export interface OrchestratorOptions {
   config: Config;
